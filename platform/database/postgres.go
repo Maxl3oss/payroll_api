@@ -15,7 +15,7 @@ import (
 // PostgreSQLConnection func for connection to PostgreSQL database.
 func PostgreSQLConnection() (*gorm.DB, error) {
 	// Build PostgreSQL connection URL.
-	connectionString, err := utils.ConnectionURLBuilder("postgres")
+	connectionString, err := utils.ConnectionURLBuilder("psql")
 	if err != nil {
 		return nil, err
 	}

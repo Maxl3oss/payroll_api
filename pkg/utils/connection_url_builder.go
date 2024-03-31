@@ -23,6 +23,8 @@ func ConnectionURLBuilder(n string) (string, error) {
 			os.Getenv("DB_NAME"),
 			os.Getenv("DB_SSL_MODE"),
 		)
+	case "psql":
+		url = fmt.Sprintf("%s", os.Getenv("DB_PSQL"))
 	case "mysql":
 		// URL for Mysql connection.
 		url = fmt.Sprintf(
