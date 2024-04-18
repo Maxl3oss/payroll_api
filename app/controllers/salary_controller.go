@@ -57,7 +57,7 @@ func (u *SalaryController) DeleteManySalary(c *fiber.Ctx) error {
 	}
 
 	// check if in month nil
-	check := u.DB.Where("EXTRACT(YEAR FROM DATE(created_at)) = ? AND EXTRACT(MONTH FROM DATE(created_at)) = ?", date.Year(), date.Month()).First(&models.User{})
+	check := u.DB.Where("EXTRACT(YEAR FROM DATE(created_at)) = ? AND EXTRACT(MONTH FROM DATE(created_at)) = ?", date.Year(), date.Month()).First(&models.Salary{})
 	if check.Error != nil {
 		return response.Message(c, fiber.ErrBadRequest.Code, false, "ไม่มีข้อมูลในช่วงเวลานี้")
 	}
@@ -198,12 +198,12 @@ func (u *SalaryController) ProcessFileBackV2(path string, dateInfo string) error
 				transfer.MobileNo = strings.ReplaceAll(transfer.MobileNo, "-", "")
 				transfer.MobileNo = strings.ReplaceAll(transfer.MobileNo, " ", "")
 				newUser := models.User{
-					Email:          transfer.Email,
-					Password:       utils.GeneratePassword(transfer.MobileNo),
-					FullName:       salary.FullName,
-					CitizenIDTaxID: transfer.CitizenIDTaxID,
-					MobileNo:       transfer.MobileNo,
-					RoleID:         2,
+					Email:    transfer.Email,
+					Password: utils.GeneratePassword(transfer.MobileNo),
+					FullName: salary.FullName,
+					TaxID:    transfer.CitizenIDTaxID,
+					Mobile:   transfer.MobileNo,
+					RoleID:   2,
 				}
 
 				// Perform the operation to create the user

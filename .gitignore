@@ -27,3 +27,5 @@ dist-ssr
 docker-compose.yml
 pgpass
 .air.toml
+uploads/*
+tmp

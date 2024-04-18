@@ -37,6 +37,8 @@ func PostgreSQLConnection() (*gorm.DB, error) {
 
 	// AutoMigrate
 	db.AutoMigrate(&models.User{}, &models.Role{}, &models.Salary{})
+	createRole(db)
+	createAdmin(db)
 
 	// if connect fail
 	if err != nil {
@@ -46,41 +48,44 @@ func PostgreSQLConnection() (*gorm.DB, error) {
 	return db, nil
 }
 
-// # setup first build database
-// func migrationDB(db *gorm.DB) {
-// 	db.AutoMigrate(&models.Prefix{}, &models.User{})
-// 	fmt.Println("Database migration completed!")
-// }
+func createRole(db *gorm.DB) {
+	var count int64
+	result := db.Model(&models.Role{}).Count(&count)
+	if result.Error != nil || count > 0 {
+		return
+	}
 
-// func createPrefixes(db *gorm.DB) error {
-// 	// add data
-// 	prefixes := []*models.Prefix{
-// 		{TitleTh: "นาย", TitleEn: "Mr."},
-// 		{TitleTh: "นาง", TitleEn: "Mrs."},
-// 		{TitleTh: "นางสาว", TitleEn: "Miss"},
-// 	}
-// 	for _, prefix := range prefixes {
-// 		result := db.Create(prefix)
-// 		if result.Error != nil {
-// 			log.Fatalf("Error creating prefix: %v", result.Error)
-// 		}
-// 	}
-// 	fmt.Printf("Create prefix successfully!")
-// 	return nil
-// }
+	// add data
+	roles := []*models.Role{
+		{Name: "admin"},
+		{Name: "user"},
+	}
+	for _, role := range roles {
+		result := db.Model(&models.Role{}).Create(role)
+		if result.Error != nil {
+			log.Fatalf("Error creating roles: %v", result.Error)
+		}
+	}
+}
 
-// func createRole(db *gorm.DB) error {
-// 	// add data
-// 	roles := []*models.Role{
-// 		{Name: "admin"},
-// 		{Name: "user"},
-// 	}
-// 	for _, role := range roles {
-// 		result := db.Model(&models.Role{}).Create(role)
-// 		if result.Error != nil {
-// 			log.Fatalf("Error creating roles: %v", result.Error)
-// 		}
-// 	}
-// 	fmt.Printf("Create roles successfully!")
-// 	return nil
-// }
+func createAdmin(db *gorm.DB) {
+	var count int64
+	resCount := db.Model(&models.User{}).Count(&count)
+	if resCount.Error != nil || count > 0 {
+		return
+	}
+
+	admin := models.User{
+		Email:    "admin@gmail.com",
+		FullName: "แอดมิน (ผู้ตรวจสอบ)",
+		Password: utils.GeneratePassword("admin"),
+		RoleID:   1,
+		Mobile:   "",
+		TaxID:    "",
+	}
+
+	result := db.Model(&models.User{}).Create(&admin)
+	if result.Error != nil {
+		log.Fatalf("Error creating roles: %v", result.Error)
+	}
+}

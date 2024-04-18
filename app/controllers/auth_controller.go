@@ -45,15 +45,23 @@ func (a *AuthController) Register(ctx *fiber.Ctx) error {
 
 func (a *AuthController) Login(ctx *fiber.Ctx) error {
 	var input models.LoginInput
-
 	if err := ctx.BodyParser(&input); err != nil {
 		return err
+	}
+
+	if input.Email == "" || input.Email == "-" {
+		input.Email = "XxX-xXx-XXX-xxx"
 	}
 
 	// data user from database
 	var user models.User
 
-	err := a.DB.Preload("Role").Where(&models.User{Email: input.Email}).Or(&models.User{CitizenIDTaxID: input.Email}).First(&user).Error
+	err := a.DB.Preload("Role").
+		Where(&models.User{Email: input.Email}).
+		Where("deleted_at IS NULL").
+		Or(&models.User{TaxID: input.Email}).
+		First(&user).Error
+
 	if err != nil {
 		return response.Message(ctx, fiber.StatusBadRequest, false, "ไม่พบผู้ใช้งานนี้!")
 	}

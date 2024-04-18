@@ -23,9 +23,12 @@ func PrivateRoutes(route fiber.Router, db *gorm.DB) {
 	userRoute.Use(middleware.JWTProtectedAdmin())
 
 	// Add route
-	userRoute.Get("", userController.GetAll)
-	userRoute.Post("", userController.Create)
-	userRoute.Delete("/:id", userController.DeleteById)
+	userRoute.Get("/get-all", userController.GetAll)
+	userRoute.Get("/get/:id", userController.GetByUser)
+	userRoute.Get("/get-role", userController.GetRole)
+	userRoute.Post("/add", userController.Create)
+	userRoute.Delete("/del/:id", userController.DeleteById)
+	userRoute.Patch("/update-pass/:id", userController.ChangePassByAdmin)
 
 	// Route group upload:
 	uploadRoute := route.Group("/uploads")
@@ -37,9 +40,8 @@ func PrivateRoutes(route fiber.Router, db *gorm.DB) {
 	salaryRoute := route.Group("/salary")
 	salaryRoute.Use(middleware.JWTProtectedAdmin())
 
-	salaryRoute.Post("/uploads", salaryController.UploadSalaryV2)
 	salaryRoute.Get("/get-all", salaryController.GetAll)
-	salaryRoute.Delete("/delete-by-month", salaryController.DeleteManySalary)
-
 	salaryRoute.Get("/get-by", salaryController.GetAll)
+	salaryRoute.Post("/uploads", salaryController.UploadSalaryV2)
+	salaryRoute.Delete("/delete-by-month", salaryController.DeleteManySalary)
 }
