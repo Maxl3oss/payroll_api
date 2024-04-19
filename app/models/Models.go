@@ -26,3 +26,15 @@ func (cm *CommonModelKeyStringFields) BeforeCreate(tx *gorm.DB) error {
 	tx.Statement.SetColumn("ID", uuid)
 	return nil
 }
+
+type Dashboard struct {
+	Received        float64           `json:"received"`          // รับจริง
+	User            int64             `json:"user"`              // รับจริง
+	ReceivedByMonth []ReceivedByMonth `json:"received_by_month"` // รายการตามเดือน
+}
+
+type ReceivedByMonth struct {
+	Year  int     `json:"year"`  // ปี
+	Month int     `json:"month"` // เดือน
+	Sum   float64 `json:"sum"`   // รวม
+}

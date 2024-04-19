@@ -14,9 +14,15 @@ func PrivateRoutes(route fiber.Router, db *gorm.DB) {
 	// route.Use(middleware.JWTProtectedAdmin())
 
 	// News controller
+	dashboardController := controllers.NewDashboardController(db)
 	userController := controllers.NewUserController(db)
 	uploadController := controllers.NewUploadController(db)
 	salaryController := controllers.NewSalaryController(db)
+
+	// Route group dashboard:
+	dashboardRoute := route.Group("/dashboard")
+	dashboardRoute.Use(middleware.JWTProtectedAdmin())
+	dashboardRoute.Get("/get", dashboardController.GetDashboard)
 
 	// Route group user:
 	userRoute := route.Group("/user")

@@ -43,7 +43,7 @@ func (u *UserController) GetAll(c *fiber.Ctx) error {
 	result := u.DB.Select("id", "full_name", "email", "mobile", "role_id", "created_at").
 		Preload("Role").
 		Where("deleted_at IS NULL AND full_name LIKE ?", "%"+search+"%").Or("email LIKE ?", "%"+search+"%").
-		Order("created_at ASC").
+		Order("created_at DESC").
 		Limit(limit).Offset(offset).
 		Find(&users)
 
@@ -98,6 +98,14 @@ func (u *UserController) Create(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&user); err != nil {
 		return err
+	}
+
+	var count int64
+	if resCount := u.DB.Model(&models.User{}).Where("email = ? AND tax_id = ?", user.Email, user.TaxID).Count(&count); resCount.Error != nil {
+		return response.Message(c, fiber.StatusNotFound, false, resCount.Error.Error())
+	}
+	if count > 0 {
+		return response.Message(c, fiber.StatusNotFound, false, "มีอีเมลหรือเลขบัตรประชาชนนี้แล้ว")
 	}
 
 	// hash password

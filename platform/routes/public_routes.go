@@ -19,6 +19,9 @@ func PublicRoutes(route fiber.Router, db *gorm.DB) {
 	authRoute := route.Group("/auth")
 
 	authRoute.Post("/login", authController.Login)
+	authRoute.Post("/forget-password", authController.ForgetPassword)
+	authRoute.Post("/confirm-opt", authController.ConfirmOTP)
+	authRoute.Post("/reset-password", authController.ResetPassword)
 	// authRoute.Post("/register", authController.Register)
 	// authRoute.Post("/refreshToken", authController.RefreshToken)
 

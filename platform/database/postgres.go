@@ -36,9 +36,9 @@ func PostgreSQLConnection() (*gorm.DB, error) {
 	})
 
 	// AutoMigrate
-	db.AutoMigrate(&models.User{}, &models.Role{}, &models.Salary{})
-	createRole(db)
-	createAdmin(db)
+	// db.AutoMigrate(&models.User{}, &models.Role{}, &models.Salary{})
+	// createRole(db)
+	// createAdmin(db)
 
 	// if connect fail
 	if err != nil {
