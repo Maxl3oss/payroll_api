@@ -40,8 +40,9 @@ func (u *UserController) GetAll(c *fiber.Ctx) error {
 	}
 
 	// Query to retrieve users based on role and search criteria, with pagination
-	result := u.DB.Select("id", "full_name", "email", "mobile", "role_id", "created_at").
+	result := u.DB.
 		Preload("Role").
+		Select("id", "full_name", "email", "mobile", "role_id", "created_at", "deleted_at").
 		Where("deleted_at IS NULL AND full_name LIKE ?", "%"+search+"%").Or("email LIKE ?", "%"+search+"%").
 		Order("created_at DESC").
 		Limit(limit).Offset(offset).
@@ -128,8 +129,12 @@ func (u *UserController) DeleteById(c *fiber.Ctx) error {
 	}
 
 	// update
-	now := time.Now()
-	user.DeletedAt = &now
+	if user.DeletedAt != nil {
+		user.DeletedAt = nil
+	} else {
+		now := time.Now()
+		user.DeletedAt = &now
+	}
 
 	// Save changes
 	if result := u.DB.Save(&user); result.Error != nil {
