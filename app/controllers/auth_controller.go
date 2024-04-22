@@ -59,12 +59,15 @@ func (a *AuthController) Login(ctx *fiber.Ctx) error {
 
 	err := a.DB.Preload("Role").
 		Where(&models.User{Email: input.Email}).
-		Where("deleted_at IS NULL").
 		Or(&models.User{TaxID: input.Email}).
 		First(&user).Error
 
+	if user.DeletedAt != nil {
+		return response.Message(ctx, fiber.StatusBadRequest, false, "บัญชีของท่านถูกปิดใช้งาน!")
+	}
+
 	if err != nil {
-		return response.Message(ctx, fiber.StatusBadRequest, false, "ไม่พบผู้ใช้งานนี้!")
+		return response.Message(ctx, fiber.StatusBadRequest, false, "อีเมลหรือรหัสไม่ถูกต้อง!")
 	}
 
 	// Compare hashed passwords
