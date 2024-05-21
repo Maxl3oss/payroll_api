@@ -31,6 +31,7 @@ func PublicRoutes(route fiber.Router, db *gorm.DB) {
 
 	salaryRoute.Get("/get-by-user/:id", salaryController.GetByUser)
 	salaryRoute.Get("/get", salaryController.GetAll)
+	salaryRoute.Get("/get-type", salaryController.GetSalaryType)
 
 	// Route group auth:
 	userRoute := route.Group("/user")

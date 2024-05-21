@@ -15,7 +15,7 @@ import (
 // PostgreSQLConnection func for connection to PostgreSQL database.
 func PostgreSQLConnection() (*gorm.DB, error) {
 	// Build PostgreSQL connection URL.
-	connectionString, err := utils.ConnectionURLBuilder("psql")
+	connectionString, err := utils.ConnectionURLBuilder(os.Getenv("CONNECT_TYPE"))
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func PostgreSQLConnection() (*gorm.DB, error) {
 	})
 
 	// AutoMigrate
-	// db.AutoMigrate(&models.User{}, &models.Role{}, &models.Salary{})
+	// db.AutoMigrate(&models.User{}, &models.Role{}, &models.Salary{}, &models.SalaryType{})
 	// createRole(db)
 	// createAdmin(db)
 

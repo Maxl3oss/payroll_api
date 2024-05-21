@@ -164,7 +164,7 @@ func (u *UserController) Update(ctx *fiber.Ctx) error {
 		FullName string `json:"full_name"`
 		Email    string `json:"email"`
 		// PassWord string `json:"password"`
-		RoleId int16  `json:"role_id"`
+		RoleId uint   `json:"role_id"`
 		Mobile string `json:"mobile"`
 	}
 

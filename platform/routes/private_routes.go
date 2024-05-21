@@ -48,6 +48,6 @@ func PrivateRoutes(route fiber.Router, db *gorm.DB) {
 
 	salaryRoute.Get("/get-all", salaryController.GetAll)
 	salaryRoute.Get("/get-by", salaryController.GetAll)
-	salaryRoute.Post("/uploads", salaryController.UploadSalaryV2)
+	salaryRoute.Post("/uploads", salaryController.UploadSalary)
 	salaryRoute.Delete("/delete-by-month", salaryController.DeleteManySalary)
 }

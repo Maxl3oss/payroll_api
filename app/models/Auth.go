@@ -6,7 +6,7 @@ type LoginInput struct {
 }
 
 type Role struct {
-	ID   int16  `json:"id"`
+	ID   uint   `json:"id"`
 	Name string `json:"name"`
 }
 
