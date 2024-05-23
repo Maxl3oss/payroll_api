@@ -2,11 +2,10 @@ package utils
 
 import (
 	"fmt"
-	"regexp"
+	"math/rand"
 	"strconv"
 	"strings"
-
-	"github.com/shakinm/xlsReader/xls"
+	"time"
 )
 
 type RowData struct {
@@ -53,85 +52,43 @@ func takes(arr []string, index int) string {
 	return arr[index]
 }
 
-// Function to clean up email addresses
-func cleanEmailAddress(email string) string {
-	// Define a regular expression to match valid email characters
-	validEmailRegex := regexp.MustCompile(`[[:alnum:]!#$%&'*+/=?^_` + "`" + `{|}~-]+(?:\.[[:alnum:]!#$%&'*+/=?^_` + "`" + `{|}~-]+)*@(?:[[:alnum:]-]+\.)+[[:alpha:]]{2,7}`)
-
-	// Find valid email addresses in the string
-	validEmail := validEmailRegex.FindString(email)
-
-	// Remove any leading or trailing whitespace
-	cleanEmail := strings.TrimSpace(validEmail)
-
-	return cleanEmail
+// remove space ` f_name    l_name ` to `f_name l_name`
+func trimAllSpace(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
 
-func GetRowsFromSheet(xlsFile xls.Workbook, name string, colTotal int) ([]RowData, error) {
-	var rows []RowData
+// Function to generate a random email address template
+func randomEmailTemplate() string {
+	// Get the current time
+	currentTime := time.Now()
 
-	sheet, err := getSheetByName(xlsFile, name)
-	if err != nil {
-		return nil, err
-	}
+	// Generate a random number between 1000 and 9999
+	randomNumber := rand.Intn(9000) + 1000
 
-	numRows := sheet.GetNumberRows()
-	for i := 0; i < numRows; i++ {
-		rowData, err := extractRowData(sheet, i, colTotal)
-		if err != nil {
-			return nil, err
-		}
+	// Construct the email template using the current time and random number
+	emailTemplate := fmt.Sprintf("user%d_%s@payroll.com", randomNumber, currentTime.Format("20060102_150405"))
 
-		if rowData != nil {
-			rows = append(rows, *rowData)
-		}
-	}
-
-	return rows, nil
+	return emailTemplate
 }
 
-func extractRowData(sheet *xls.Sheet, rowIndex, colTotal int) (*RowData, error) {
-	rowData := RowData{}
+// Function to generate a random string of numbers with a specified length
+func randomNumericString(length int) string {
+	// Create a new source using the current time as a seed
+	source := rand.NewSource(time.Now().UnixNano())
 
-	row, err := sheet.GetRow(rowIndex)
-	if err != nil {
-		return nil, err
+	// Create a new random generator using the source
+	random := rand.New(source)
+
+	// Define the characters to be used in the random string
+	const charset = "0123456789"
+
+	// Create a byte slice with the specified length
+	randomString := make([]byte, length)
+
+	// Fill the byte slice with random characters from the charset
+	for i := range randomString {
+		randomString[i] = charset[random.Intn(len(charset))]
 	}
 
-	// Check if the first cell contains a numeric index
-	cellFirst, err := row.GetCol(0)
-	if err != nil {
-		return nil, err
-	}
-	cellIndex := cellFirst.GetString()
-	if !isNumeric(cellIndex) || strings.TrimSpace(cellIndex) == "" {
-		// Skip non-numeric index rows
-		return nil, nil
-	}
-
-	// Extract data from each column
-	for j := 0; j <= colTotal; j++ {
-		cell, err := row.GetCol(j)
-		if err != nil {
-			return nil, err
-		}
-		cellValue := cell.GetString()
-		rowData.Cells = append(rowData.Cells, cellValue)
-	}
-
-	return &rowData, nil
-}
-
-func getSheetByName(workbook xls.Workbook, name string) (*xls.Sheet, error) {
-	numSheets := workbook.GetNumberSheets()
-	for i := 0; i < numSheets; i++ {
-		sheet, err := workbook.GetSheet(i)
-		if err != nil {
-			return nil, err
-		}
-		if sheet.GetName() == name {
-			return sheet, nil
-		}
-	}
-	return nil, fmt.Errorf("sheet not found: %s", name)
+	return string(randomString)
 }

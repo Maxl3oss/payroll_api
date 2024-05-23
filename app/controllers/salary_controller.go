@@ -206,10 +206,10 @@ func (u *SalaryController) UploadSalary(c *fiber.Ctx) error {
 		// Determine file extension
 		ext := filepath.Ext(file.Filename)
 		switch ext {
-		case ".xlsx", ".xls":
-			err = utils.ProcessFileBack(u.DB, pathFile, dateInfo, dataSalaryType, ext)
+		case ".xlsx":
+			err = utils.ProcessFileBack(u.DB, pathFile, dateInfo, dataSalaryType)
 		default:
-			err = errors.New("only (.xlsx, .xls) files allowed")
+			err = errors.New("only (.xlsx) files allowed")
 		}
 
 		// Handle errors

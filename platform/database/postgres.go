@@ -36,9 +36,10 @@ func PostgreSQLConnection() (*gorm.DB, error) {
 	})
 
 	// AutoMigrate
-	// db.AutoMigrate(&models.User{}, &models.Role{}, &models.Salary{}, &models.SalaryType{})
-	// createRole(db)
-	// createAdmin(db)
+	db.AutoMigrate(&models.User{}, &models.Role{}, &models.Salary{}, &models.SalaryType{})
+	createRole(db)
+	createAdmin(db)
+	createSalaryType(db)
 
 	// if connect fail
 	if err != nil {
@@ -87,5 +88,30 @@ func createAdmin(db *gorm.DB) {
 	result := db.Model(&models.User{}).Create(&admin)
 	if result.Error != nil {
 		log.Fatalf("Error creating roles: %v", result.Error)
+	}
+}
+
+func createSalaryType(db *gorm.DB) {
+	var count int64
+	response := db.Model(&models.SalaryType{}).Count(&count)
+	if response.Error != nil || count > 0 {
+		return
+	}
+
+	salaryTypes := []*models.SalaryType{
+		{Name: "รพสต."},
+		{Name: "สจ."},
+		{Name: "ฝ่ายประจำ"},
+		{Name: "เงินเดือนครู"},
+		{Name: "บำนาญครู"},
+		{Name: "บำเหน็จรายเดือน"},
+		{Name: "บำนาญข้าราชการ"},
+	}
+
+	for _, salaryType := range salaryTypes {
+		result := db.Model(&models.SalaryType{}).Create(salaryType)
+		if result.Error != nil {
+			log.Fatalf("Error creating salary type: %v", result.Error)
+		}
 	}
 }
