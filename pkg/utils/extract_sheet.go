@@ -52,8 +52,18 @@ func createUser(DB *gorm.DB, transfer models.TransferInfo, salary models.Salary)
 	transfer.MobileNo = strings.ReplaceAll(transfer.MobileNo, "-", "")
 	transfer.MobileNo = strings.ReplaceAll(transfer.MobileNo, " ", "")
 	// check email
-	email := transfer.Email
-	if strings.TrimSpace(email) == "" || email == "-" {
+	var email string
+
+	trimmedEmail := strings.TrimSpace(transfer.Email)
+	trimmedCitizenIDTaxID := strings.TrimSpace(transfer.CitizenIDTaxID)
+
+	// Check if Email is not empty or not equal to "-"
+	if trimmedEmail != "" && trimmedEmail != "-" {
+		email = trimmedEmail
+	} else if trimmedCitizenIDTaxID != "" && trimmedCitizenIDTaxID != "-" {
+		email = trimmedCitizenIDTaxID
+	} else {
+		// Fallback to random email template
 		email = randomEmailTemplate()
 	}
 

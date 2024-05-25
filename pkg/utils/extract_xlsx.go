@@ -403,7 +403,7 @@ func extractSheetTeacherPension(f *excelize.File) ([]models.Salary, error) {
 	return salaries, nil
 }
 
-// ==================================== ครูบำนาญครู
+// ==================================== บำนาญข้าราชการ
 func extractSheetCivilServantPension(f *excelize.File) ([]models.Salary, error) {
 	rows, err := f.GetRows("รายละเอียดประกอบรายงานเช็ค")
 	if err != nil {
