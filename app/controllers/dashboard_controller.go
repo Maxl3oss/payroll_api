@@ -30,12 +30,14 @@ func (d *DashboardController) GetDashboard(c *fiber.Ctx) error {
 	var totalReceived float64
 	var totalUser int64
 
-	if result := d.DB.Model(&models.Salary{}).Select("SUM(received) as total_received").Scan(&totalReceived); result.Error != nil {
-		return response.Message(c, fiber.ErrBadRequest.Code, false, result.Error.Error())
+	if result := d.DB.Model(&models.Salary{}).Where("EXTRACT(YEAR FROM created_at) = ?", year).Select("SUM(received) as total_received").Scan(&totalReceived); result.Error != nil {
+		// return response.Message(c, fiber.ErrBadRequest.Code, false, result.Error.Error())
+		totalReceived = 0
 	}
 
 	if result := d.DB.Model(&models.User{}).Where("deleted_at IS NULL AND role_id = ?", 2).Count(&totalUser); result.Error != nil {
-		return response.Message(c, fiber.StatusInternalServerError, false, result.Error.Error())
+		// return response.Message(c, fiber.StatusInternalServerError, false, result.Error.Error())
+		totalUser = 0
 	}
 
 	// query by month

@@ -123,7 +123,7 @@ func (u *SalaryController) GetByUser(c *fiber.Ctx) error {
 	}
 
 	// data
-	queryData := u.DB.Model(&models.Salary{}).Where("user_id = ?", userID)
+	queryData := u.DB.Preload("SalaryType").Model(&models.Salary{}).Where("user_id = ?", userID)
 	if errDate == nil {
 		queryData = queryData.Where("EXTRACT(YEAR FROM DATE(created_at)) = ? AND EXTRACT(MONTH FROM DATE(created_at)) = ?", date.Year(), date.Month())
 	}
