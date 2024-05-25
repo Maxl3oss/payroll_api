@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"math/rand"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +26,14 @@ func takesFloat(arr []string, index int) float64 {
 	}
 
 	return convertFloat(arr[index])
+}
+
+func isValidEmail(email string) bool {
+	// Define a regular expression for validating email format.
+	// This is a simple regex for demonstration purposes. Adjust it according to your needs.
+	const emailRegexPattern = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	re := regexp.MustCompile(emailRegexPattern)
+	return re.MatchString(email)
 }
 
 func convertFloat(str string) float64 {

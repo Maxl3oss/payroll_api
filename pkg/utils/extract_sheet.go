@@ -58,7 +58,7 @@ func createUser(DB *gorm.DB, transfer models.TransferInfo, salary models.Salary)
 	trimmedCitizenIDTaxID := strings.TrimSpace(transfer.CitizenIDTaxID)
 
 	// Check if Email is not empty or not equal to "-"
-	if trimmedEmail != "" && trimmedEmail != "-" {
+	if isValidEmail(trimmedEmail) {
 		email = trimmedEmail
 	} else if trimmedCitizenIDTaxID != "" && trimmedCitizenIDTaxID != "-" {
 		email = trimmedCitizenIDTaxID
