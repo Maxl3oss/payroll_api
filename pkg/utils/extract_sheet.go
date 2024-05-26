@@ -183,7 +183,7 @@ func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType model
 				if salary.FullName == transfer.ReceiverName || salary.BankAccountNumber == transfer.ReceivingACNo {
 					//  Check user have?
 					var user models.User
-					check := DB.Where(&models.User{FullName: trimAllSpace(transfer.ReceiverName)}).First(&user)
+					check := DB.Where(&models.User{FullName: trimAllSpace(transfer.ReceiverName)}).Or(&models.User{TaxID: transfer.CitizenIDTaxID}).First(&user)
 					if check.Error == nil {
 						dataSalary[idx].UserID = &user.ID
 						// log.Printf("old user 1 -> %+v", dataSalary[idx].UserID)
