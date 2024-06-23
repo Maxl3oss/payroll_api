@@ -37,10 +37,10 @@ func PostgreSQLConnection() (*gorm.DB, error) {
 
 	// AutoMigrate
 	// db.Migrator().DropTable(&models.User{}, &models.Role{}, &models.Salary{}, &models.SalaryType{}, &models.SalaryOther{})
-	// db.AutoMigrate(&models.User{}, &models.Role{}, &models.Salary{}, &models.SalaryType{}, &models.SalaryOther{})
-	// createRole(db)
-	// createAdmin(db)
-	// createSalaryType(db)
+	db.AutoMigrate(&models.User{}, &models.Role{}, &models.Salary{}, &models.SalaryType{}, &models.SalaryOther{})
+	createRole(db)
+	createAdmin(db)
+	createSalaryType(db)
 
 	// if connect fail
 	if err != nil {
