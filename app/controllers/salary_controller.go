@@ -8,6 +8,7 @@ import (
 	"maxl3oss/pkg/utils"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -23,22 +24,56 @@ func NewSalaryController(db *gorm.DB) *SalaryController {
 
 func (u *SalaryController) DeleteManySalary(c *fiber.Ctx) error {
 	date, errDate := utils.ToThaiTime(c.Query("month"))
+	inpType := c.Query("type", "0")
+	salaryType, err := strconv.Atoi(inpType)
+	if err != nil {
+		return response.Message(c, fiber.StatusBadRequest, false, "ข้อมูลรูปแบบไม่ถูกต้อง")
+	}
+
 	if errDate != nil {
-		return response.Message(c, fiber.ErrBadRequest.Code, false, errDate.Error())
+		return response.Message(c, fiber.StatusBadRequest, false, errDate.Error())
 	}
 
-	// check if in month nil
-	check := u.DB.Where("EXTRACT(YEAR FROM DATE(created_at)) = ? AND EXTRACT(MONTH FROM DATE(created_at)) = ?", date.Year(), date.Month()).First(&models.Salary{})
-	if check.Error != nil {
-		return response.Message(c, fiber.ErrBadRequest.Code, false, "ไม่มีข้อมูลในช่วงเวลานี้")
+	// Start a transaction
+	tx := u.DB.Begin()
+	if tx.Error != nil {
+		return response.Message(c, fiber.StatusInternalServerError, false, "Failed to start transaction")
 	}
 
-	result := u.DB.Delete(&models.Salary{}, "EXTRACT(YEAR FROM DATE(created_at)) = ? AND EXTRACT(MONTH FROM DATE(created_at)) = ?", date.Year(), date.Month())
-	if result.Error != nil {
-		return response.Message(c, fiber.ErrBadRequest.Code, false, result.Error.Error())
+	// Define the date condition
+	dateCondition := "EXTRACT(YEAR FROM DATE(created_at)) = ? AND EXTRACT(MONTH FROM DATE(created_at)) = ?"
+	if salaryType != 0 {
+		dateCondition += " AND salary_type_id = ?"
+	} else {
+		dateCondition += " OR salary_type_id = ?"
 	}
 
-	return response.Message(c, fiber.StatusOK, true, "Delete data salary successfully!")
+	// Delete salary
+	resultSalary := tx.Delete(&models.Salary{}, dateCondition, date.Year(), date.Month(), salaryType)
+	if resultSalary.Error != nil {
+		tx.Rollback()
+		return response.Message(c, fiber.StatusInternalServerError, false, "Failed to delete salary data")
+	}
+
+	// Delete salary other
+	resultOther := tx.Delete(&models.SalaryOther{}, dateCondition, date.Year(), date.Month(), salaryType)
+	if resultOther.Error != nil {
+		tx.Rollback()
+		return response.Message(c, fiber.StatusInternalServerError, false, "Failed to delete salary other data")
+	}
+
+	// Check if any rows were affected
+	if resultSalary.RowsAffected == 0 && resultOther.RowsAffected == 0 {
+		tx.Rollback()
+		return response.Message(c, fiber.StatusNotFound, false, "ไม่พบข้อมูลในช่วงเวลานี้")
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		return response.Message(c, fiber.StatusInternalServerError, false, "Failed to commit transaction")
+	}
+
+	return response.Message(c, fiber.StatusOK, true, "ลบข้อมูลเงินเดือนสำเร็จ")
 }
 
 func (u *SalaryController) GetAll(c *fiber.Ctx) error {
@@ -46,9 +81,7 @@ func (u *SalaryController) GetAll(c *fiber.Ctx) error {
 	limit, _ := strconv.Atoi(c.Query("pageSize", "10"))
 	search := c.Query("search")
 	inpType := c.Query("type", "0")
-
-	// date, errDate := time.Parse(time.RFC3339, c.Query("month"))
-	date, errDate := utils.ToThaiTime(c.Query("month"))
+	date, _ := utils.ToThaiTime(c.Query("month"))
 
 	offset := (page - 1) * limit
 	var salaries []models.Salary
@@ -57,31 +90,21 @@ func (u *SalaryController) GetAll(c *fiber.Ctx) error {
 
 	salaryType, err := strconv.Atoi(inpType)
 	if err != nil {
-		return response.Message(c, fiber.StatusBadRequest, false, err.Error())
+		return response.Message(c, fiber.StatusBadRequest, false, "ข้อมูลรูปแบบไม่ถูกต้อง")
 	}
 
-	// count
-	queryCount := u.DB.Model(&models.Salary{}).Where("full_name LIKE ?", "%"+search+"%")
-	if errDate == nil {
-		queryCount = queryCount.Where("EXTRACT(YEAR FROM DATE(created_at)) = ? AND EXTRACT(MONTH FROM DATE(created_at)) = ?", date.Year(), date.Month())
-	}
-	if salaryType != 0 {
-		queryCount = queryCount.Where("salary_type_id = ?", uint(salaryType))
-	}
-	err = queryCount.Count(&resCount).Error
-	if err != nil {
+	// In your main function:
+	query := buildQueryGetAll(u.DB, search, &date, salaryType)
+
+	// Count
+	if err := query.Count(&resCount).Error; err != nil {
 		return response.Message(c, fiber.StatusInternalServerError, false, err.Error())
 	}
 
-	// data
-	queryData := u.DB.Preload("SalaryType").Model(&models.Salary{}).Where("full_name LIKE ?", "%"+search+"%")
-	if errDate == nil {
-		queryData = queryData.Where("EXTRACT(YEAR FROM DATE(created_at)) = ? AND EXTRACT(MONTH FROM DATE(created_at)) = ?", date.Year(), date.Month())
-	}
-	if salaryType != 0 {
-		queryData = queryData.Where("salary_type_id = ?", uint(salaryType))
-	}
-	result := queryData.Limit(limit).Offset(offset).Find(&salaries)
+	// Data
+	result := query.Preload("SalaryType").Preload("SalaryOther").
+		Limit(limit).Offset(offset).Find(&salaries)
+
 	if result.Error != nil {
 		return response.Message(c, fiber.StatusInternalServerError, false, result.Error.Error())
 	}
@@ -93,6 +116,20 @@ func (u *SalaryController) GetAll(c *fiber.Ctx) error {
 	}
 
 	return response.SendData(c, fiber.StatusOK, true, salaries, &pagin)
+}
+
+func buildQueryGetAll(db *gorm.DB, search string, date *time.Time, salaryType int) *gorm.DB {
+	query := db.Model(&models.Salary{}).Where("full_name LIKE ?", "%"+search+"%")
+
+	if date != nil {
+		query = query.Where("EXTRACT(YEAR FROM DATE(created_at)) = ? AND EXTRACT(MONTH FROM DATE(created_at)) = ?", date.Year(), date.Month())
+	}
+
+	if salaryType != 0 {
+		query = query.Where("salary_type_id = ?", uint(salaryType))
+	}
+
+	return query
 }
 
 func (u *SalaryController) GetByUser(c *fiber.Ctx) error {
@@ -161,6 +198,7 @@ func (u *SalaryController) UploadSalary(c *fiber.Ctx) error {
 
 	// get form files
 	files := form.File["files[]"]
+	others := convertOthers(c)
 	dateInfo := c.FormValue("month")
 
 	// get salary type
@@ -207,7 +245,7 @@ func (u *SalaryController) UploadSalary(c *fiber.Ctx) error {
 		ext := filepath.Ext(file.Filename)
 		switch ext {
 		case ".xlsx":
-			err = utils.ProcessFileBack(u.DB, pathFile, dateInfo, dataSalaryType)
+			err = utils.ProcessFileBack(u.DB, pathFile, dateInfo, dataSalaryType, others)
 		default:
 			err = errors.New("only (.xlsx) files allowed")
 		}
@@ -221,4 +259,35 @@ func (u *SalaryController) UploadSalary(c *fiber.Ctx) error {
 	// Commit the transaction if all operations succeed
 	tx.Commit()
 	return response.Message(c, fiber.StatusOK, true, "Upload successfully!")
+}
+
+func (u *SalaryController) GetSalaryOther(c *fiber.Ctx) error {
+	var dataSalaryOther models.SalaryOther
+	inpType := c.Query("type", "0")
+	salaryType, err := strconv.Atoi(inpType)
+	if err != nil {
+		return response.Message(c, fiber.StatusBadRequest, false, "ข้อมูลรูปแบบไม่ถูกต้อง")
+	}
+
+	var result = u.DB.Where(&models.SalaryOther{SalaryTypeID: uint(salaryType)}).Order("created_at DESC").First(&dataSalaryOther)
+	if result.Error != nil {
+		return response.Message(c, fiber.StatusInternalServerError, false, result.Error.Error())
+	}
+	return response.SendData(c, fiber.StatusOK, true, dataSalaryOther, nil)
+}
+
+// get others name
+func convertOthers(c *fiber.Ctx) models.TypeOthersName {
+	result := models.TypeOthersName{
+		Other1Name: c.FormValue("other1_name", ""),
+		Other2Name: c.FormValue("other2_name", ""),
+		Other3Name: c.FormValue("other3_name", ""),
+		Other4Name: c.FormValue("other4_name", ""),
+		Other5Name: c.FormValue("other5_name", ""),
+		Other6Name: c.FormValue("other6_name", ""),
+		Other7Name: c.FormValue("other7_name", ""),
+		Other8Name: c.FormValue("other8_name", ""),
+	}
+
+	return result
 }

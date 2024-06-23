@@ -33,7 +33,7 @@ func (u *UserController) GetAll(c *fiber.Ctx) error {
 	offset := (page - 1) * limit
 
 	// Query to get the total count of users based on search criteria
-	queryCount := u.DB.Model(&models.User{}).Where("deleted_at IS NULL AND full_name LIKE ?", "%"+search+"%").Or("email LIKE ?", "%"+search+"%")
+	queryCount := u.DB.Model(&models.User{}).Where("full_name LIKE ?", "%"+search+"%").Or("email LIKE ?", "%"+search+"%")
 	err := queryCount.Count(&resCount).Error
 	if err != nil {
 		return response.Message(c, fiber.StatusInternalServerError, false, err.Error())
@@ -43,7 +43,7 @@ func (u *UserController) GetAll(c *fiber.Ctx) error {
 	result := u.DB.
 		Preload("Role").
 		Select("id", "full_name", "email", "mobile", "role_id", "created_at", "deleted_at").
-		Where("deleted_at IS NULL AND full_name LIKE ?", "%"+search+"%").Or("email LIKE ?", "%"+search+"%").
+		Where("full_name LIKE ?", "%"+search+"%").Or("email LIKE ?", "%"+search+"%").
 		Order("created_at DESC").
 		Limit(limit).Offset(offset).
 		Find(&users)

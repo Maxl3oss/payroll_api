@@ -35,7 +35,7 @@ func (d *DashboardController) GetDashboard(c *fiber.Ctx) error {
 		totalReceived = 0
 	}
 
-	if result := d.DB.Model(&models.User{}).Where("deleted_at IS NULL AND role_id = ?", 2).Count(&totalUser); result.Error != nil {
+	if result := d.DB.Model(&models.User{}).Where("deleted_at IS NULL OR role_id = ?", 2).Count(&totalUser); result.Error != nil {
 		// return response.Message(c, fiber.StatusInternalServerError, false, result.Error.Error())
 		totalUser = 0
 	}

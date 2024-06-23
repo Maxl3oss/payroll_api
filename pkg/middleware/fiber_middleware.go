@@ -14,5 +14,7 @@ func FiberMiddleware(a *fiber.App) {
 		cors.New(),
 		// Add simple logger.
 		logger.New(),
+		// Add encrypt response
+		// utils.EncryptResponse(),
 	)
 }

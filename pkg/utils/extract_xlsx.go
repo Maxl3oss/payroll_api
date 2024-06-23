@@ -13,59 +13,8 @@ type TypeTargetSheet struct {
 	isUse bool
 }
 
-// ==================================== รพสต. xlsx
-func extractSheetSalaryHospital(f *excelize.File) ([]models.Salary, error) {
-	rows, err := f.GetRows("เงินเดือน ") // Change "Sheet1" to your sheet name
-	if err != nil {
-		return nil, err
-	}
-
-	// check format col
-	formatKeys := []string{
-		"ลำดับที่", "ชื่อ-สกุล", "เลขบัญชีธนาคาร", "เงินเดือน", "เงินเพิ่มค่าครองชีพ", "เงินประจำตำแหน่ง", "ค่าตอบแทนรายเดือน", "รวมจ่ายจริง", "ภาษี", "กบข.", "สหกรณ์ออมทรัพย์สาธารณสุข", "กรมสรรพากร(กยศ.)", "ฌกส.", "เงินกู้ธ.กรุงไทย", "รวมรับจริง", "รับจริง", "อื่นๆ",
-	}
-	if err = CheckFormatCol(rows[3], formatKeys, 21); err != nil {
-		return nil, err
-	}
-
-	// add data form xlsx to models
-	var salaries []models.Salary
-
-	for rowIndex := 7; rowIndex < len(rows)-1; rowIndex++ {
-		row := rows[rowIndex]
-		// Skip non-numeric index rows
-		indexNo := takes(row, 0)
-		if !isNumeric(indexNo) || strings.TrimSpace(indexNo) == "" {
-			continue
-		}
-
-		other := takesFloat(row, 14) + takesFloat(row, 15) + takesFloat(row, 16) + takesFloat(row, 17) + takesFloat(row, 18)
-
-		salary := models.Salary{
-			FullName:            takes(row, 1),
-			BankAccountNumber:   takes(row, 2),
-			Salary:              takesFloat(row, 3),
-			AdditionalBenefits:  takesFloat(row, 4),
-			FixedIncome:         takesFloat(row, 5),
-			MonthlyCompensation: takesFloat(row, 6),
-			TotalIncome:         takesFloat(row, 7),
-
-			Tax:                     takesFloat(row, 8),
-			Cooperative:             takesFloat(row, 9),
-			PublicHealthCooperative: takesFloat(row, 10),
-			RevenueDepartment:       takesFloat(row, 11),
-			DGS:                     takesFloat(row, 12),
-			BangkokBank:             takesFloat(row, 13),
-			Other:                   other,
-			ActualPay:               takesFloat(row, 19),
-			Received:                takesFloat(row, 20),
-		}
-		salaries = append(salaries, salary)
-	}
-	return salaries, nil
-}
-
-func extractSheetDetailHospital(f *excelize.File, targetSheet *TypeTargetSheet) ([]models.TransferInfo, error) {
+// ==================================== รายละเอียดข้อมูล
+func extractSheetDetail(f *excelize.File, targetSheet *TypeTargetSheet) ([]models.TransferInfo, error) {
 	rows, err := f.GetRows(targetSheet.Name)
 	if err != nil {
 		return nil, err
@@ -109,6 +58,62 @@ func extractSheetDetailHospital(f *excelize.File, targetSheet *TypeTargetSheet) 
 	return transferInfos, nil
 }
 
+// ==================================== รพสต. xlsx
+func extractSheetSalaryHospital(f *excelize.File) ([]models.Salary, error) {
+	rows, err := f.GetRows("เงินเดือน ") // Change "Sheet1" to your sheet name
+	if err != nil {
+		return nil, err
+	}
+
+	// check format col
+	// formatKeys := []string{
+	// 	"ลำดับที่", "ชื่อ-สกุล", "เลขบัญชีธนาคาร", "เงินเดือน", "เงินเพิ่มค่าครองชีพ", "เงินประจำตำแหน่ง", "ค่าตอบแทนรายเดือน", "รวมจ่ายจริง", "ภาษี", "กบข.", "สหกรณ์ออมทรัพย์สาธารณสุข", "กรมสรรพากร(กยศ.)", "ฌกส.", "เงินกู้ธ.กรุงไทย", "รวมรับจริง", "รับจริง", "อื่นๆ",
+	// }
+	// if err = CheckFormatCol(rows[3], formatKeys, 21); err != nil {
+	// 	return nil, err
+	// }
+
+	// add data form xlsx to models
+	var salaries []models.Salary
+
+	for rowIndex := 7; rowIndex < len(rows)-1; rowIndex++ {
+		row := rows[rowIndex]
+		// Skip non-numeric index rows
+		indexNo := takes(row, 0)
+		if !isNumeric(indexNo) || strings.TrimSpace(indexNo) == "" {
+			continue
+		}
+
+		// other := takesFloat(row, 14) + takesFloat(row, 15) + takesFloat(row, 16) + takesFloat(row, 17) + takesFloat(row, 18)
+
+		salary := models.Salary{
+			FullName:            takes(row, 1),
+			BankAccountNumber:   takes(row, 2),
+			Salary:              takesFloat(row, 3),
+			AdditionalBenefits:  takesFloat(row, 4),
+			FixedIncome:         takesFloat(row, 5),
+			MonthlyCompensation: takesFloat(row, 6),
+			TotalIncome:         takesFloat(row, 7),
+
+			Tax:                     takesFloat(row, 8),
+			Cooperative:             takesFloat(row, 9),
+			PublicHealthCooperative: takesFloat(row, 10),
+			RevenueDepartment:       takesFloat(row, 11),
+			DGS:                     takesFloat(row, 12),
+			KrungThaiBank:           takesFloat(row, 13),
+			Other1:                  takesFloat(row, 14),
+			Other2:                  takesFloat(row, 15),
+			Other3:                  takesFloat(row, 16),
+			Other4:                  takesFloat(row, 17),
+			Other5:                  takesFloat(row, 18),
+			ActualPay:               takesFloat(row, 19),
+			Received:                takesFloat(row, 20),
+		}
+		salaries = append(salaries, salary)
+	}
+	return salaries, nil
+}
+
 // ==================================== สจ.
 func extractSheetSalaryConsultant(f *excelize.File) ([]models.Salary, error) {
 	rows, err := f.GetRows("เงินเดือน")
@@ -128,7 +133,7 @@ func extractSheetSalaryConsultant(f *excelize.File) ([]models.Salary, error) {
 			continue
 		}
 
-		other := takesFloat(row, 11) + takesFloat(row, 12)
+		// other := takesFloat(row, 11) + takesFloat(row, 12)
 
 		salary := models.Salary{
 			FullName:                  takes(row, 1),
@@ -140,7 +145,8 @@ func extractSheetSalaryConsultant(f *excelize.File) ([]models.Salary, error) {
 			Tax:                       takesFloat(row, 8),
 			CentralWorldSavingsBranch: takesFloat(row, 9),
 			ActualPay:                 takesFloat(row, 10),
-			Other:                     other,
+			Other1:                    takesFloat(row, 11),
+			Other2:                    takesFloat(row, 12),
 			Received:                  takesFloat(row, 13),
 		}
 		salaries = append(salaries, salary)
@@ -179,7 +185,7 @@ func extractSheetSalaryMonthlyPension(f *excelize.File) ([]models.Salary, error)
 		GC := takesFloat(row, 12)
 		phuketSavingsBranch := takesFloat(row, 13)
 		bangkokBankLoan := takesFloat(row, 14)
-		other := takesFloat(row, 15) + takesFloat(row, 16) + takesFloat(row, 17) + takesFloat(row, 18) + takesFloat(row, 19)
+		// other := takesFloat(row, 15) + takesFloat(row, 16) + takesFloat(row, 17) + takesFloat(row, 18) + takesFloat(row, 19)
 
 		actualPay := takesFloat(row, 20)
 		received := takesFloat(row, 21)
@@ -195,7 +201,11 @@ func extractSheetSalaryMonthlyPension(f *excelize.File) ([]models.Salary, error)
 			GC:                  GC,
 			PhuketSavingsBranch: phuketSavingsBranch,
 			BangkokBankLoan:     bangkokBankLoan,
-			Other:               other,
+			Other1:              takesFloat(row, 15),
+			Other2:              takesFloat(row, 16),
+			Other3:              takesFloat(row, 17),
+			Other4:              takesFloat(row, 18),
+			Other5:              takesFloat(row, 19),
 			ActualPay:           actualPay,
 			Received:            received,
 		}
@@ -250,7 +260,7 @@ func extractSheetSalaryDepartment(f *excelize.File) ([]models.Salary, error) {
 		DPC := takesFloat(row, 22)
 		GC := takesFloat(row, 23)
 		islamicBankLoan := takesFloat(row, 24)
-		other := takesFloat(row, 25) + takesFloat(row, 26) + takesFloat(row, 27) + takesFloat(row, 28) + takesFloat(row, 29)
+		// other := takesFloat(row, 25) + takesFloat(row, 26) + takesFloat(row, 27) + takesFloat(row, 28) + takesFloat(row, 29)
 
 		actualPay := takesFloat(row, 30)
 		received := takesFloat(row, 31)
@@ -267,20 +277,24 @@ func extractSheetSalaryDepartment(f *excelize.File) ([]models.Salary, error) {
 			SocialSecurityDeduction:    socialSecurityDeduction,
 			SocialSecurityWelfare:      socialSecurityWelfare,
 			OBACoop:                    OBACoop,
-			TeacherCoop:                teacherCoop,
+			TeachersSavingsCoop:        teacherCoop,
 			MinistryOfPublicHealthCoop: ministryOfPublicHealthCoop,
 			RHSCoop:                    RHSCoop,
 			PhuketSavingsBranch:        phuketSavingsBranch,
 			CentralWorldSavingsBranch:  centralWorldSavingsBranch,
 			RevenueDepartment:          revenueDepartment,
-			BangkokBank:                bangkokBank,
+			KrungThaiBank:              bangkokBank,
 			PublicHealthCooperative:    publicHealthCooperative,
 			CPKP:                       CPKP,
 			CPKS:                       CPKS,
 			DPC:                        DPC,
 			GC:                         GC,
 			IslamicBankLoan:            islamicBankLoan,
-			Other:                      other,
+			Other1:                     takesFloat(row, 25),
+			Other2:                     takesFloat(row, 26),
+			Other3:                     takesFloat(row, 27),
+			Other4:                     takesFloat(row, 28),
+			Other5:                     takesFloat(row, 29),
 			ActualPay:                  actualPay,
 			Received:                   received,
 		}
@@ -310,7 +324,7 @@ func extractSheetSalaryTeacher(f *excelize.File) ([]models.Salary, error) {
 			continue
 		}
 
-		other := takesFloat(row, 33) + takesFloat(row, 34) + takesFloat(row, 35) + takesFloat(row, 36) + takesFloat(row, 37)
+		// other := takesFloat(row, 33) + takesFloat(row, 34) + takesFloat(row, 35) + takesFloat(row, 36) + takesFloat(row, 37)
 
 		salary := models.Salary{
 			FullName:          takes(row, 1),
@@ -320,9 +334,9 @@ func extractSheetSalaryTeacher(f *excelize.File) ([]models.Salary, error) {
 
 			LivingAllowance:     takesFloat(row, 7),
 			MonthlyCompensation: takesFloat(row, 8),
-
-			AcademicAllowance: takesFloat(row, 11),
-			TotalIncome:       takesFloat(row, 13),
+			SpecialCompensation: takesFloat(row, 10),
+			AcademicAllowance:   takesFloat(row, 11),
+			TotalIncome:         takesFloat(row, 13),
 
 			Tax:                         takesFloat(row, 14),
 			SocialSecurityDeduction:     takesFloat(row, 15),
@@ -344,7 +358,12 @@ func extractSheetSalaryTeacher(f *excelize.File) ([]models.Salary, error) {
 			HomeProChalongSavingsBranch: takesFloat(row, 31),
 			TeachersSavingsCoop:         takesFloat(row, 32),
 
-			Other:     other,
+			// Other:     other,
+			Other1:    takesFloat(row, 33),
+			Other2:    takesFloat(row, 34),
+			Other3:    takesFloat(row, 35),
+			Other4:    takesFloat(row, 36),
+			Other5:    takesFloat(row, 37),
 			ActualPay: takesFloat(row, 38),
 			Received:  takesFloat(row, 39),
 		}
@@ -373,8 +392,7 @@ func extractSheetTeacherPension(f *excelize.File) ([]models.Salary, error) {
 			continue
 		}
 
-		other := takesFloat(row, 17) + takesFloat(row, 18) + takesFloat(row, 19) + takesFloat(row, 20) + takesFloat(row, 21)
-
+		// other := takesFloat(row, 17) + takesFloat(row, 18) + takesFloat(row, 19) + takesFloat(row, 20) + takesFloat(row, 21)
 		salary := models.Salary{
 			FullName:          takes(row, 1),
 			BankAccountNumber: takes(row, 2),
@@ -392,7 +410,12 @@ func extractSheetTeacherPension(f *excelize.File) ([]models.Salary, error) {
 			CentralWorldSavingsBranch:   takesFloat(row, 14),
 			CPKP:                        takesFloat(row, 15),
 			CPKS:                        takesFloat(row, 16),
-			Other:                       other,
+
+			Other1: takesFloat(row, 17),
+			Other2: takesFloat(row, 18),
+			Other3: takesFloat(row, 19),
+			Other4: takesFloat(row, 20),
+			Other5: takesFloat(row, 21),
 
 			ActualPay: takesFloat(row, 22),
 			Received:  takesFloat(row, 23),
@@ -422,8 +445,7 @@ func extractSheetCivilServantPension(f *excelize.File) ([]models.Salary, error) 
 			continue
 		}
 
-		other := takesFloat(row, 22) + takesFloat(row, 23) + takesFloat(row, 24) + takesFloat(row, 25) + takesFloat(row, 26) + takesFloat(row, 27) + takesFloat(row, 28) + takesFloat(row, 29)
-
+		// other := takesFloat(row, 22) + takesFloat(row, 23) + takesFloat(row, 24) + takesFloat(row, 25) + takesFloat(row, 26) + takesFloat(row, 27) + takesFloat(row, 28) + takesFloat(row, 29)
 		salary := models.Salary{
 			FullName:          takes(row, 1),
 			BankAccountNumber: takes(row, 2),
@@ -433,21 +455,29 @@ func extractSheetCivilServantPension(f *excelize.File) ([]models.Salary, error) 
 			LumpSum:           takesFloat(row, 7),
 			TotalIncome:       takesFloat(row, 8),
 
-			Tax:         takesFloat(row, 9),
-			OBACoop:     takesFloat(row, 10),
-			TeacherCoop: takesFloat(row, 11),
-			RHSCoop:     takesFloat(row, 12),
-			CPKS:        takesFloat(row, 13),
+			Tax:                 takesFloat(row, 9),
+			OBACoop:             takesFloat(row, 10),
+			TeachersSavingsCoop: takesFloat(row, 11),
+			RHSCoop:             takesFloat(row, 12),
+			CPKS:                takesFloat(row, 13),
 
 			CPKP:                      takesFloat(row, 15),
 			DPC:                       takesFloat(row, 16),
 			GC:                        takesFloat(row, 17),
-			BangkokBank:               takesFloat(row, 18),
+			KrungThaiBank:             takesFloat(row, 18),
 			IslamicBankLoan:           takesFloat(row, 19),
 			PhuketSavingsBranch:       takesFloat(row, 20),
 			CentralWorldSavingsBranch: takesFloat(row, 21),
 
-			Other:     other,
+			Other1: takesFloat(row, 22),
+			Other2: takesFloat(row, 23),
+			Other3: takesFloat(row, 24),
+			Other4: takesFloat(row, 25),
+			Other5: takesFloat(row, 26),
+			Other6: takesFloat(row, 27),
+			Other7: takesFloat(row, 28),
+			Other8: takesFloat(row, 29),
+
 			ActualPay: takesFloat(row, 30),
 			Received:  takesFloat(row, 31),
 		}

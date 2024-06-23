@@ -2,25 +2,47 @@ package utils
 
 import (
 	"errors"
-	"log"
 	"maxl3oss/app/models"
 	"strings"
+	"time"
 
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
 
-// create salary
-func createManySalary(DB *gorm.DB, dataSalary []models.Salary, dateInfo string, typeID uint) error {
-	log.Printf("data => %v", dataSalary)
+// create other name
+func createSalaryOther(DB *gorm.DB, others models.TypeOthersName, typeID uint, date time.Time) (uint, error) {
+	newData := &models.SalaryOther{
+		TypeOthersName: others,
+		SalaryTypeID:   typeID,
+	}
+	newData.CreatedAt = date
 
+	result := DB.Model(&models.SalaryOther{}).Create(newData)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return newData.ID, nil
+}
+
+// create salary
+func createManySalary(DB *gorm.DB, dataSalary []models.Salary, dateInfo string, typeID uint, others models.TypeOthersName) error {
+	date, err := ToThaiTime(dateInfo)
+	if err != nil {
+		return err
+	}
+
+	// create other
+	SOId, resultSalaryOther := createSalaryOther(DB, others, typeID, date)
+	if resultSalaryOther != nil {
+		return resultSalaryOther
+	}
+
+	// loop create salary
 	for _, salary := range dataSalary {
-		date, err := ToThaiTime(dateInfo)
-		if err != nil {
-			return err
-		}
 		salary.CreatedAt = date
 		salary.SalaryTypeID = typeID
+		salary.SalaryOtherId = SOId
 
 		// check if fullName empty connect
 		if salary.FullName == "" {
@@ -90,8 +112,42 @@ func createUser(DB *gorm.DB, transfer models.TransferInfo, salary models.Salary)
 	return makeNewUser, nil
 }
 
+func updateUser(DB *gorm.DB, transfer models.TransferInfo) error {
+	transfer.MobileNo = strings.ReplaceAll(transfer.MobileNo, "-", "")
+	transfer.MobileNo = strings.ReplaceAll(transfer.MobileNo, " ", "")
+	// check email
+	var email string
+
+	trimmedEmail := strings.TrimSpace(transfer.Email)
+	trimmedCitizenIDTaxID := strings.TrimSpace(transfer.CitizenIDTaxID)
+
+	// Check if Email is not empty or not equal to "-"
+	if isValidEmail(trimmedEmail) {
+		email = trimmedEmail
+	} else if trimmedCitizenIDTaxID != "" && trimmedCitizenIDTaxID != "-" {
+		email = trimmedCitizenIDTaxID
+	} else {
+		// Fallback to random email template
+		email = randomEmailTemplate()
+	}
+
+	makeNewUser := models.User{
+		Email:    email,
+		FullName: trimAllSpace(transfer.ReceiverName),
+		TaxID:    transfer.CitizenIDTaxID,
+		Mobile:   transfer.MobileNo,
+		RoleID:   2,
+	}
+
+	if err := DB.Model(&models.User{}).Create(&makeNewUser).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // for process
-func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType models.SalaryType) error {
+func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType models.SalaryType, others models.TypeOthersName) error {
 	var err error
 	var xlsxFile *excelize.File
 	var dataSalary []models.Salary
@@ -136,12 +192,11 @@ func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType model
 		}
 	case "บำนาญครู":
 		targetSheet.Name = "KTB Corporate 3"
-		targetSheet.Cols = 7
 		if dataSalary, err = extractSheetTeacherPension(xlsxFile); err != nil {
 			return err
 		}
 	case "บำนาญข้าราชการ":
-		targetSheet.isUse = false
+		targetSheet.Name = "KTB Corporate (2)"
 		if dataSalary, err = extractSheetCivilServantPension(xlsxFile); err != nil {
 			return err
 		}
@@ -149,12 +204,12 @@ func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType model
 
 	// get details
 	if targetSheet.isUse {
-		if dataTransfer, err = extractSheetDetailHospital(xlsxFile, targetSheet); err != nil {
+		if dataTransfer, err = extractSheetDetail(xlsxFile, targetSheet); err != nil {
 			return err
 		}
 	}
 
-	if salaryType.Name == "บำนาญข้าราชการ" {
+	if salaryType.Name == "บำนาญข้าราชการ-old" {
 		// Loop through each salary data
 		for idx, salary := range dataSalary {
 			//  Check user have?
@@ -186,7 +241,10 @@ func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType model
 					check := DB.Where(&models.User{FullName: trimAllSpace(transfer.ReceiverName)}).Or(&models.User{TaxID: transfer.CitizenIDTaxID}).First(&user)
 					if check.Error == nil {
 						dataSalary[idx].UserID = &user.ID
-						// log.Printf("old user 1 -> %+v", dataSalary[idx].UserID)
+						errUpdate := updateUser(DB, transfer)
+						if errUpdate != nil {
+							return errUpdate
+						}
 						break
 					}
 
@@ -197,7 +255,6 @@ func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType model
 					}
 
 					dataSalary[idx].UserID = &newUser.ID
-					// log.Printf("new user 1 -> %+v", dataSalary[idx].UserID)
 					break
 				}
 			}
@@ -205,7 +262,7 @@ func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType model
 	}
 
 	// Create many salaries
-	err = createManySalary(DB, dataSalary, dateInfo, salaryType.ID)
+	err = createManySalary(DB, dataSalary, dateInfo, salaryType.ID, others)
 	if err != nil {
 		return err
 	}
