@@ -1,42 +1,53 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/base64"
+	"encoding/hex"
+	"fmt"
 	"io"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func encryptAES(plaintext []byte, key []byte) (string, error) {
+func encrypt(data []byte, key []byte) (string, error) {
+	// Ensure the key is 32 bytes long for AES-256
+	if len(key) != 32 {
+		return "", fmt.Errorf("key must be 32 bytes long")
+	}
+
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
 	}
 
-	// Create a new GCM - https://en.wikipedia.org/wiki/Galois/Counter_Mode
-	aesGCM, err := cipher.NewGCM(block)
-	if err != nil {
+	plaintext, _ := pkcs7Pad(data, block.BlockSize())
+
+	// Generate a random IV
+	ciphertext := make([]byte, aes.BlockSize+len(plaintext))
+	iv := ciphertext[:aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return "", err
 	}
 
-	// Create a nonce. Nonce should be from GCM
-	nonce := make([]byte, aesGCM.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", err
-	}
+	mode := cipher.NewCBCEncrypter(block, iv)
+	mode.CryptBlocks(ciphertext[aes.BlockSize:], plaintext)
 
-	// Encrypt the data using aesGCM.Seal
-	// Since we don't want to save the nonce somewhere else in this case, we add it as a prefix to the encrypted data. The first nonce argument in Seal is the prefix.
-	ciphertext := aesGCM.Seal(nonce, nonce, plaintext, nil)
+	return hex.EncodeToString(ciphertext), nil
+}
 
-	// Return as base64 string
-	return base64.StdEncoding.EncodeToString(ciphertext), nil
+func pkcs7Pad(data []byte, blockSize int) ([]byte, error) {
+	padding := blockSize - len(data)%blockSize
+	padText := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(data, padText...), nil
 }
 
 func EncryptResponse() fiber.Handler {
+	key := os.Getenv("SECRET_KEY")
+
 	return func(c *fiber.Ctx) error {
 		// Proceed with next middleware
 		if err := c.Next(); err != nil {
@@ -47,7 +58,7 @@ func EncryptResponse() fiber.Handler {
 		body := c.Response().Body()
 
 		// Encrypt response body
-		encrypted, err := encryptAES(body, []byte("Zi4VwqYgHXNbBQRRETetjPZVRHKibAux"))
+		encrypted, err := encrypt(body, []byte(key))
 		if err != nil {
 			return err
 		}

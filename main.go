@@ -11,14 +11,15 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/joho/godotenv"
 )
 
 func main() {
 	// Load environment variables from .env file
-	// err := godotenv.Load()
-	// if err != nil {
-	// 	panic("Error loading .env file")
-	// }
+	err := godotenv.Load()
+	if err != nil {
+		panic("Error loading .env file")
+	}
 
 	// Define Fiber config.
 	config := configs.FiberConfig()

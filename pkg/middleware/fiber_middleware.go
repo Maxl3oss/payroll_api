@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"maxl3oss/pkg/utils"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -15,6 +17,6 @@ func FiberMiddleware(a *fiber.App) {
 		// Add simple logger.
 		logger.New(),
 		// Add encrypt response
-		// utils.EncryptResponse(),
+		utils.EncryptResponse(),
 	)
 }
