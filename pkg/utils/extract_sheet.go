@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"maxl3oss/app/models"
+	"regexp"
 	"strings"
 	"time"
 
@@ -70,9 +71,10 @@ func createManySalary(DB *gorm.DB, dataSalary []models.Salary, dateInfo string, 
 // create user
 func createUser(DB *gorm.DB, transfer models.TransferInfo, salary models.Salary) (newUser models.User, err error) {
 
-	// Create user
-	transfer.MobileNo = strings.ReplaceAll(transfer.MobileNo, "-", "")
-	transfer.MobileNo = strings.ReplaceAll(transfer.MobileNo, " ", "")
+	// clear text get only number
+	regNumber := regexp.MustCompile(`[^\d]`)
+	transfer.MobileNo = regNumber.ReplaceAllString(transfer.MobileNo, "")
+
 	// check email
 	var email string
 
@@ -96,7 +98,7 @@ func createUser(DB *gorm.DB, transfer models.TransferInfo, salary models.Salary)
 	}
 
 	makeNewUser := models.User{
-		Email:    email,
+		Email:    strings.TrimSpace(email),
 		Password: GeneratePassword(password),
 		FullName: trimAllSpace(salary.FullName),
 		TaxID:    transfer.CitizenIDTaxID,
@@ -134,12 +136,11 @@ func updateUser(DB *gorm.DB, transfer models.TransferInfo) error {
 	makeNewUser := models.User{
 		Email:    email,
 		FullName: trimAllSpace(transfer.ReceiverName),
-		TaxID:    transfer.CitizenIDTaxID,
 		Mobile:   transfer.MobileNo,
 		RoleID:   2,
 	}
 
-	if err := DB.Model(&models.User{}).Create(&makeNewUser).Error; err != nil {
+	if err := DB.Where(&models.User{TaxID: transfer.CitizenIDTaxID}).Updates(&makeNewUser).Error; err != nil {
 		return err
 	}
 
@@ -152,6 +153,7 @@ func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType model
 	var xlsxFile *excelize.File
 	var dataSalary []models.Salary
 	var dataTransfer []models.TransferInfo
+
 	// for sheet detail
 	var targetSheet = &TypeTargetSheet{
 		Name:  "Detail",
@@ -209,54 +211,33 @@ func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType model
 		}
 	}
 
-	if salaryType.Name == "บำนาญข้าราชการ-old" {
-		// Loop through each salary data
-		for idx, salary := range dataSalary {
-			//  Check user have?
-			var user models.User
-			check := DB.Where(&models.User{FullName: trimAllSpace(salary.FullName)}).First(&user)
-			if check.Error == nil {
-				dataSalary[idx].UserID = &user.ID
-				// log.Printf("old user 1 -> %+v", dataSalary[idx].UserID)
-				break
-			}
-
-			// Perform the operation to create the user
-			newUser, err := createUser(DB, models.TransferInfo{}, salary)
-			if err != nil {
-				return err
-			}
-
-			dataSalary[idx].UserID = &newUser.ID
-		}
-	} else {
-		// Loop through each salary data
-		for idx, salary := range dataSalary {
-			// Loop through each transfer data
-			for _, transfer := range dataTransfer {
-				// Check if the full names match
-				if salary.FullName == transfer.ReceiverName || salary.BankAccountNumber == transfer.ReceivingACNo {
-					//  Check user have?
-					var user models.User
-					check := DB.Where(&models.User{FullName: trimAllSpace(transfer.ReceiverName)}).Or(&models.User{TaxID: transfer.CitizenIDTaxID}).First(&user)
-					if check.Error == nil {
-						dataSalary[idx].UserID = &user.ID
-						errUpdate := updateUser(DB, transfer)
-						if errUpdate != nil {
-							return errUpdate
-						}
-						break
+	// Loop through each salary data
+	for idx, salary := range dataSalary {
+		// Loop through each transfer data
+		for _, transfer := range dataTransfer {
+			// Check if the full names match
+			if salary.FullName == transfer.ReceiverName || salary.BankAccountNumber == transfer.ReceivingACNo {
+				//  Check user have?
+				var user models.User
+				err := DB.Where(&models.User{TaxID: transfer.CitizenIDTaxID}).First(&user).Error
+				if err == nil {
+					// if have update user
+					dataSalary[idx].UserID = &user.ID
+					errUpdate := updateUser(DB, transfer)
+					if errUpdate != nil {
+						return errUpdate
 					}
-
-					// Perform the operation to create the user
-					newUser, err := createUser(DB, transfer, salary)
-					if err != nil {
-						return err
-					}
-
-					dataSalary[idx].UserID = &newUser.ID
 					break
 				}
+
+				// Create the user
+				newUser, err := createUser(DB, transfer, salary)
+				if err != nil {
+					return err
+				}
+
+				dataSalary[idx].UserID = &newUser.ID
+				break
 			}
 		}
 	}
