@@ -279,14 +279,15 @@ func (u *SalaryController) GetSalaryOther(c *fiber.Ctx) error {
 // get others name
 func convertOthers(c *fiber.Ctx) models.TypeOthersName {
 	result := models.TypeOthersName{
-		Other1Name: c.FormValue("other1_name", ""),
-		Other2Name: c.FormValue("other2_name", ""),
-		Other3Name: c.FormValue("other3_name", ""),
-		Other4Name: c.FormValue("other4_name", ""),
-		Other5Name: c.FormValue("other5_name", ""),
-		Other6Name: c.FormValue("other6_name", ""),
-		Other7Name: c.FormValue("other7_name", ""),
-		Other8Name: c.FormValue("other8_name", ""),
+		Other1Name:   c.FormValue("other1_name", ""),
+		Other2Name:   c.FormValue("other2_name", ""),
+		Other3Name:   c.FormValue("other3_name", ""),
+		Other4Name:   c.FormValue("other4_name", ""),
+		Other5Name:   c.FormValue("other5_name", ""),
+		Other6Name:   c.FormValue("other6_name", ""),
+		Other7Name:   c.FormValue("other7_name", ""),
+		Other8Name:   c.FormValue("other8_name", ""),
+		TransferDate: c.FormValue("transferDate", ""),
 	}
 
 	return result

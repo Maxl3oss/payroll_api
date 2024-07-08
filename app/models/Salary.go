@@ -86,12 +86,13 @@ type SalaryOther struct {
 }
 
 type TypeOthersName struct {
-	Other1Name string `json:"other1_name"`
-	Other2Name string `json:"other2_name"`
-	Other3Name string `json:"other3_name"`
-	Other4Name string `json:"other4_name"`
-	Other5Name string `json:"other5_name"`
-	Other6Name string `json:"other6_name"`
-	Other7Name string `json:"other7_name"`
-	Other8Name string `json:"other8_name"`
+	Other1Name   string `json:"other1_name"`
+	Other2Name   string `json:"other2_name"`
+	Other3Name   string `json:"other3_name"`
+	Other4Name   string `json:"other4_name"`
+	Other5Name   string `json:"other5_name"`
+	Other6Name   string `json:"other6_name"`
+	Other7Name   string `json:"other7_name"`
+	Other8Name   string `json:"other8_name"`
+	TransferDate string `json:"transferDate"`
 }
