@@ -4,7 +4,10 @@ type Salary struct {
 	CommonModelFields
 	FullName string `json:"full_name"` // ชื่อ-สกุล
 
-	// สีเขียว / รายจ่าย
+	/*
+	* ! สีเขียว / เงินเข้า
+	* เลขบัญชีธนาคาร
+	 */
 	BankAccountNumber   string  `json:"bank_account_number"`  // เลขบัญชีธนาคาร
 	Salary              float64 `json:"salary"`               // เงินเดือน
 	SalaryPeriod        float64 `json:"salary_period"`        // เงินเดือน(ตกเบิก)
@@ -21,7 +24,10 @@ type Salary struct {
 	AcademicAllowance   float64 `json:"academic_allowance"`   // เงินค่าวิทยฐานะ
 	TotalIncome         float64 `json:"total_income"`         // รวมรับจริง
 
-	// สีแดง / เงินหัก
+	/*
+	* ! สีแดง / เงินหัก
+	* ภาษี
+	 */
 	Tax                         float64 `json:"tax"`                             // ภาษี
 	PublicHealthCooperative     float64 `json:"public_health_cooperative"`       // สหกรณ์ออมทรัพย์สาธารณสุข
 	RevenueDepartment           float64 `json:"revenue_department"`              // กรมสรรพากร(กยศ.)
@@ -67,8 +73,9 @@ type Salary struct {
 
 	SalaryTypeID uint       `json:"type_id"`     // รหัส type
 	SalaryType   SalaryType `json:"salary_type"` // ข้อมูลที่ relation กัน
-	UserID       *string    `json:"user_id"`     // รหัส user
-	User         User       `json:"user"`        // ข้อมูลที่ relation กัน
+
+	UserID *string `json:"user_id" gorm:"type:varchar(255)"`            // รหัส user
+	User   User    `json:"user" gorm:"foreignKey:UserID;references:ID"` // ข้อมูลที่ relation กัน
 
 	SalaryOtherId uint        `json:"salary_other_id"` // รหัส other
 	SalaryOther   SalaryOther `json:"salary_other"`

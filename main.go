@@ -48,7 +48,7 @@ func main() {
 	middleware.FiberMiddleware(app) // Register Fiber's middleware for app.
 
 	// connect db
-	db, err := database.PostgreSQLConnection()
+	db, err := database.MariaDBConnection()
 	if err != nil {
 		panic(err)
 	}

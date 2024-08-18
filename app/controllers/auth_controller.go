@@ -58,8 +58,7 @@ func (a *AuthController) Login(ctx *fiber.Ctx) error {
 	var user models.User
 
 	err := a.DB.Preload("Role").
-		Where(&models.User{Email: input.Email}).
-		Or(&models.User{TaxID: input.Email}).
+		Where("email = ? OR tax_id = ?", input.Email, input.Email).
 		First(&user).Error
 
 	if user.DeletedAt != nil {
@@ -67,6 +66,7 @@ func (a *AuthController) Login(ctx *fiber.Ctx) error {
 	}
 
 	if err != nil {
+		println("err -> %s", err.Error())
 		return response.Message(ctx, fiber.StatusBadRequest, false, "อีเมลหรือรหัสไม่ถูกต้อง!")
 	}
 

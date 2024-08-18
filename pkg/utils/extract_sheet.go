@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"maxl3oss/app/models"
 	"regexp"
 	"strings"
@@ -147,106 +148,213 @@ func updateUser(DB *gorm.DB, transfer models.TransferInfo) error {
 	return nil
 }
 
-// for process
+// process file
+type extractorFunc func(*excelize.File) ([]models.Salary, error)
+
+var salaryExtractors = map[string]extractorFunc{
+	"รพสต.":     extractSheetSalaryHospital,
+	"สจ.":       extractSheetSalaryConsultant,
+	"ฝ่ายประจำ": extractSheetSalaryDepartment,
+	"บำเหน็จรายเดือน": extractSheetSalaryMonthlyPension,
+	"เงินเดือนครู":    extractSheetSalaryTeacher,
+	"บำนาญครู":        extractSheetTeacherPension,
+	"บำนาญข้าราชการ":  extractSheetCivilServantPension,
+}
+
 func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType models.SalaryType, others models.TypeOthersName) error {
-	var err error
-	var xlsxFile *excelize.File
-	var dataSalary []models.Salary
-	var dataTransfer []models.TransferInfo
-
-	// for sheet detail
-	var targetSheet = &TypeTargetSheet{
-		Name:  "Detail",
-		Cols:  8,
-		isUse: true,
-	}
-
-	// read files xlsx
-	xlsxFile, err = excelize.OpenFile(path)
+	xlsxFile, err := excelize.OpenFile(path)
 	if err != nil {
 		return err
 	}
 	defer xlsxFile.Close()
 
-	// get salary
+	targetSheet := &TypeTargetSheet{
+		Name:  "Detail",
+		Cols:  8,
+		isUse: true,
+	}
+
+	extractFunc, ok := salaryExtractors[salaryType.Name]
+	if !ok {
+		return fmt.Errorf("unsupported salary type: %s", salaryType.Name)
+	}
+
+	// Adjust target sheet name based on salary type
 	switch salaryType.Name {
-	case "รพสต.":
-		if dataSalary, err = extractSheetSalaryHospital(xlsxFile); err != nil {
-			return err
-		}
-	case "สจ.":
-		if dataSalary, err = extractSheetSalaryConsultant(xlsxFile); err != nil {
-			return err
-		}
-	case "ฝ่ายประจำ":
-		if dataSalary, err = extractSheetSalaryDepartment(xlsxFile); err != nil {
-			return err
-		}
 	case "บำเหน็จรายเดือน":
 		targetSheet.Name = "KTB Corporate (2)"
-		if dataSalary, err = extractSheetSalaryMonthlyPension(xlsxFile); err != nil {
-			return err
-		}
 	case "เงินเดือนครู":
 		targetSheet.Name = "KTB Corporate Online (3)"
-		if dataSalary, err = extractSheetSalaryTeacher(xlsxFile); err != nil {
-			return err
-		}
 	case "บำนาญครู":
 		targetSheet.Name = "KTB Corporate 3"
-		if dataSalary, err = extractSheetTeacherPension(xlsxFile); err != nil {
-			return err
-		}
 	case "บำนาญข้าราชการ":
 		targetSheet.Name = "KTB Corporate (2)"
-		if dataSalary, err = extractSheetCivilServantPension(xlsxFile); err != nil {
-			return err
-		}
 	}
 
-	// get details
-	if targetSheet.isUse {
-		if dataTransfer, err = extractSheetDetail(xlsxFile, targetSheet); err != nil {
-			return err
-		}
-	}
-
-	// Loop through each salary data
-	for idx, salary := range dataSalary {
-		// Loop through each transfer data
-		for _, transfer := range dataTransfer {
-			// Check if the full names match
-			if salary.FullName == transfer.ReceiverName || salary.BankAccountNumber == transfer.ReceivingACNo {
-				//  Check user have?
-				var user models.User
-				err := DB.Where(&models.User{TaxID: transfer.CitizenIDTaxID}).First(&user).Error
-				if err == nil {
-					// if have update user
-					dataSalary[idx].UserID = &user.ID
-					errUpdate := updateUser(DB, transfer)
-					if errUpdate != nil {
-						return errUpdate
-					}
-					break
-				}
-
-				// Create the user
-				newUser, err := createUser(DB, transfer, salary)
-				if err != nil {
-					return err
-				}
-
-				dataSalary[idx].UserID = &newUser.ID
-				break
-			}
-		}
-	}
-
-	// Create many salaries
-	err = createManySalary(DB, dataSalary, dateInfo, salaryType.ID, others)
+	dataSalary, err := extractFunc(xlsxFile)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	var dataTransfer []models.TransferInfo
+	if targetSheet.isUse {
+		dataTransfer, err = extractSheetDetail(xlsxFile, targetSheet)
+		if err != nil {
+			return err
+		}
+	}
+
+	transferMap := make(map[string]models.TransferInfo)
+	for _, transfer := range dataTransfer {
+		transferMap[transfer.ReceiverName] = transfer
+		transferMap[transfer.ReceivingACNo] = transfer
+	}
+
+	userCache := make(map[string]models.User)
+
+	for idx := range dataSalary {
+		transfer, ok := transferMap[dataSalary[idx].FullName]
+		if !ok {
+			transfer, ok = transferMap[dataSalary[idx].BankAccountNumber]
+		}
+		if !ok {
+			continue
+		}
+
+		user, err := getOrCreateUser(DB, transfer, dataSalary[idx], userCache)
+		if err != nil {
+			return err
+		}
+
+		dataSalary[idx].UserID = &user.ID
+	}
+
+	return createManySalary(DB, dataSalary, dateInfo, salaryType.ID, others)
 }
+
+func getOrCreateUser(DB *gorm.DB, transfer models.TransferInfo, salary models.Salary, cache map[string]models.User) (models.User, error) {
+	if user, ok := cache[transfer.CitizenIDTaxID]; ok {
+		return user, nil
+	}
+
+	var user models.User
+	err := DB.Where(&models.User{TaxID: transfer.CitizenIDTaxID}).First(&user).Error
+	if err == nil {
+		if err := updateUser(DB, transfer); err != nil {
+			return models.User{}, err
+		}
+		cache[transfer.CitizenIDTaxID] = user
+		return user, nil
+	}
+
+	newUser, err := createUser(DB, transfer, salary)
+	if err != nil {
+		return models.User{}, err
+	}
+	cache[transfer.CitizenIDTaxID] = newUser
+	return newUser, nil
+}
+
+// for process
+// func ProcessFileBack(DB *gorm.DB, path string, dateInfo string, salaryType models.SalaryType, others models.TypeOthersName) error {
+// 	var err error
+// 	var xlsxFile *excelize.File
+// 	var dataSalary []models.Salary
+// 	var dataTransfer []models.TransferInfo
+
+// 	// for sheet detail
+// 	var targetSheet = &TypeTargetSheet{
+// 		Name:  "Detail",
+// 		Cols:  8,
+// 		isUse: true,
+// 	}
+
+// 	// read files xlsx
+// 	xlsxFile, err = excelize.OpenFile(path)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer xlsxFile.Close()
+
+// 	// get salary
+// 	switch salaryType.Name {
+// 	case "รพสต.":
+// 		if dataSalary, err = extractSheetSalaryHospital(xlsxFile); err != nil {
+// 			return err
+// 		}
+// 	case "สจ.":
+// 		if dataSalary, err = extractSheetSalaryConsultant(xlsxFile); err != nil {
+// 			return err
+// 		}
+// 	case "ฝ่ายประจำ":
+// 		if dataSalary, err = extractSheetSalaryDepartment(xlsxFile); err != nil {
+// 			return err
+// 		}
+// 	case "บำเหน็จรายเดือน":
+// 		targetSheet.Name = "KTB Corporate (2)"
+// 		if dataSalary, err = extractSheetSalaryMonthlyPension(xlsxFile); err != nil {
+// 			return err
+// 		}
+// 	case "เงินเดือนครู":
+// 		targetSheet.Name = "KTB Corporate Online (3)"
+// 		if dataSalary, err = extractSheetSalaryTeacher(xlsxFile); err != nil {
+// 			return err
+// 		}
+// 	case "บำนาญครู":
+// 		targetSheet.Name = "KTB Corporate 3"
+// 		if dataSalary, err = extractSheetTeacherPension(xlsxFile); err != nil {
+// 			return err
+// 		}
+// 	case "บำนาญข้าราชการ":
+// 		targetSheet.Name = "KTB Corporate (2)"
+// 		if dataSalary, err = extractSheetCivilServantPension(xlsxFile); err != nil {
+// 			return err
+// 		}
+// 	}
+
+// 	// get details
+// 	if targetSheet.isUse {
+// 		if dataTransfer, err = extractSheetDetail(xlsxFile, targetSheet); err != nil {
+// 			return err
+// 		}
+// 	}
+
+// 	// Loop through each salary data
+// 	for idx, salary := range dataSalary {
+// 		// Loop through each transfer data
+// 		for _, transfer := range dataTransfer {
+// 			// Check if the full names match
+// 			if salary.FullName == transfer.ReceiverName || salary.BankAccountNumber == transfer.ReceivingACNo {
+// 				//  Check user have?
+// 				var user models.User
+// 				err := DB.Where(&models.User{TaxID: transfer.CitizenIDTaxID}).First(&user).Error
+// 				if err == nil {
+// 					// if have update user
+// 					dataSalary[idx].UserID = &user.ID
+// 					errUpdate := updateUser(DB, transfer)
+// 					if errUpdate != nil {
+// 						return errUpdate
+// 					}
+// 					break
+// 				}
+
+// 				// Create the user
+// 				newUser, err := createUser(DB, transfer, salary)
+// 				if err != nil {
+// 					return err
+// 				}
+
+// 				dataSalary[idx].UserID = &newUser.ID
+// 				break
+// 			}
+// 		}
+// 	}
+
+// 	// Create many salaries
+// 	err = createManySalary(DB, dataSalary, dateInfo, salaryType.ID, others)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	return nil
+// }
